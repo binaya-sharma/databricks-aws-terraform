@@ -10,6 +10,32 @@ locals {
   })
 }
 
+locals {
+  vpc_cidr_bounds = {
+    start = sum([
+      for index, octet in split(".", cidrhost(var.vpc_cidr, 0)) :
+      tonumber(octet) * pow(256, 3 - index)
+    ])
+    end = sum([
+      for index, octet in split(".", cidrhost(var.vpc_cidr, -1)) :
+      tonumber(octet) * pow(256, 3 - index)
+    ])
+  }
+
+  subnet_cidr_bounds = [
+    for cidr in concat([var.public_subnet_cidr], var.private_subnet_cidrs) : {
+      start = sum([
+        for index, octet in split(".", cidrhost(cidr, 0)) :
+        tonumber(octet) * pow(256, 3 - index)
+      ])
+      end = sum([
+        for index, octet in split(".", cidrhost(cidr, -1)) :
+        tonumber(octet) * pow(256, 3 - index)
+      ])
+    }
+  ]
+}
+
 resource "terraform_data" "network_validation" {
   lifecycle {
     precondition {
@@ -23,8 +49,9 @@ resource "terraform_data" "network_validation" {
 
     precondition {
       condition = alltrue([
-        for cidr in concat([var.public_subnet_cidr], var.private_subnet_cidrs) :
-        cidrcontains(var.vpc_cidr, cidrhost(cidr, 0))
+        for subnet in local.subnet_cidr_bounds :
+        subnet.start >= local.vpc_cidr_bounds.start
+        && subnet.end <= local.vpc_cidr_bounds.end
       ])
       error_message = "All subnet CIDRs must be contained by vpc_cidr."
     }
@@ -32,6 +59,16 @@ resource "terraform_data" "network_validation" {
     precondition {
       condition     = length(toset(concat([var.public_subnet_cidr], var.private_subnet_cidrs))) == 3
       error_message = "The public and private subnet CIDRs must be unique."
+    }
+
+    precondition {
+      condition = alltrue([
+        for index, subnet in local.subnet_cidr_bounds : alltrue([
+          for other_index, other_subnet in local.subnet_cidr_bounds :
+          index >= other_index || subnet.end < other_subnet.start || other_subnet.end < subnet.start
+        ])
+      ])
+      error_message = "The public and private subnet CIDRs must not overlap."
     }
   }
 }

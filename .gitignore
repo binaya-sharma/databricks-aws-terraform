@@ -39,3 +39,4 @@ build/
 *.orig
 .vscode/
 .artifacts/
+tmp/

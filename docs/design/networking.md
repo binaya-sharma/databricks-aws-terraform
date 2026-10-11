@@ -1,5 +1,7 @@
 # Networking
 
+For a console-based learning walkthrough covering VPC creation, subnet CIDRs, Internet Gateway routing, and public IPv4 assignment, see the [VPC foundation walkthrough](../step-by-step/vpc-foundation.md). This repository is managed by Terraform, so do not manually create the same project resources.
+
 ## Address plan
 
 | Network | CIDR | Purpose |

@@ -6,6 +6,15 @@ Provision one temporary Databricks Classic workspace in `us-east-1` with a
 Terraform-managed customer VPC. Configure future Classic Compute connectivity
 without creating or starting compute.
 
+## Scope and ownership
+
+The repository has two Terraform roots. `infrastructure/bootstrap` manages the
+S3 bucket for remote environment state. `infrastructure/environments/dev`
+manages the development platform. Shared modules under
+`infrastructure/modules` compose the network, IAM, storage, and Databricks
+account resources. See [Terraform state](../reference/terraform-state.md) for the state
+lifecycle.
+
 ## Component flow
 
 1. Terraform uses the local AWS identity to create VPC, IAM, and S3 resources.
@@ -15,7 +24,8 @@ without creating or starting compute.
 4. Databricks registers the two private subnets and security group as a network
    configuration.
 5. Databricks registers the private S3 bucket as workspace root storage.
-6. Databricks creates the workspace from the credential, network, and storage IDs.
+6. Databricks creates the workspace from the credential, network, and storage
+   IDs.
 7. Future Classic Compute would use private subnet addresses and the NAT Gateway
    for required outbound control-plane connectivity.
 
