@@ -22,6 +22,8 @@ The devcontainer provides a consistent shell and Terraform toolchain for working
 
 The devcontainer stores AWS configuration in a named Docker volume mounted at `/home/vscode/.aws`. This keeps credentials out of the Git repository and preserves them when the container is rebuilt. Anyone with access to the Docker host may still be able to access that volume.
 
+The container also stores uv's download cache and uv-managed Python installations in named Docker volumes. They are mounted at `/home/vscode/.cache/uv` and `/home/vscode/.local/share/uv/python`, so package downloads and the Python 3.12 interpreter survive a container rebuild. The `uv` executable itself is installed from the Dockerfile when the image is built. The post-create script creates the repository's ignored `.venv` directory with Python 3.12 when no `pyproject.toml` exists; when one exists, `uv sync` creates or updates the project environment. The `.venv` persists with the workspace files and is the interpreter path configured for VS Code. Removing the named volumes or deleting `.venv` removes their respective cached data or environment.
+
 ## Configure AWS authentication
 
 Use AWS IAM Identity Center when it is available. It provides temporary credentials and avoids long lived access keys:

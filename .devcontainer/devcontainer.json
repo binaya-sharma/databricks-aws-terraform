@@ -8,12 +8,16 @@
   "mounts": [
     "source=databricks-aws-terraform-aws-config,target=/home/vscode/.aws,type=volume",
     "source=databricks-aws-terraform-databricks-config,target=/home/vscode/.databricks,type=volume",
-    "source=databricks-aws-terraform-codex-data,target=/home/vscode/.codex,type=volume"
+    "source=databricks-aws-terraform-codex-data,target=/home/vscode/.codex,type=volume",
+    "source=databricks-aws-terraform-uv-cache,target=/home/vscode/.cache/uv,type=volume",
+    "source=databricks-aws-terraform-uv-python,target=/home/vscode/.local/share/uv/python,type=volume"
   ],
   "containerEnv": {
     "AWS_CONFIG_FILE": "/home/vscode/.aws/config",
     "AWS_SHARED_CREDENTIALS_FILE": "/home/vscode/.aws/credentials",
-    "DATABRICKS_CONFIG_FILE": "/home/vscode/.databricks/config"
+    "DATABRICKS_CONFIG_FILE": "/home/vscode/.databricks/config",
+    "UV_CACHE_DIR": "/home/vscode/.cache/uv",
+    "UV_PYTHON_INSTALL_DIR": "/home/vscode/.local/share/uv/python"
   },
   "customizations": {
     "vscode": {

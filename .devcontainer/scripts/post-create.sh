@@ -10,8 +10,14 @@ cd "${repo_root}"
 sudo chown -R vscode:vscode \
     /home/vscode/.aws \
     /home/vscode/.codex \
+    /home/vscode/.databricks \
+    /home/vscode/.cache/uv \
+    /home/vscode/.local/share/uv/python
+
+chmod 700 \
+    /home/vscode/.aws \
+    /home/vscode/.codex \
     /home/vscode/.databricks
-chmod 700 /home/vscode/.aws /home/vscode/.codex /home/vscode/.databricks
 
 if [[ -f pyproject.toml ]]; then
     if [[ -f uv.lock ]]; then
@@ -19,6 +25,8 @@ if [[ -f pyproject.toml ]]; then
     else
         uv sync --all-extras
     fi
+elif [[ ! -x .venv/bin/python ]]; then
+    uv venv --python 3.12 .venv
 fi
 
 printf '%s\n' \

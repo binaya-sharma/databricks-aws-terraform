@@ -43,6 +43,15 @@ RUN curl --fail --silent --show-error --location \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends terraform \
     && rm -rf /var/lib/apt/lists/*
 
+# Prepare writable mount points for persistent uv cache and Python installs.
+RUN mkdir -p \
+        /home/vscode/.cache/uv \
+        /home/vscode/.local/bin \
+        /home/vscode/.local/share/uv/python \
+    && chown -R vscode:vscode \
+        /home/vscode/.cache \
+        /home/vscode/.local
+
 # Install the current Databricks CLI using Databricks' official installer.
 RUN curl --fail --silent --show-error --location \
         https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh \
@@ -51,9 +60,12 @@ RUN curl --fail --silent --show-error --location \
 # Keep developer-owned tools and their caches under the non-root user's home.
 USER vscode
 ENV PATH="/home/vscode/.local/bin:${PATH}"
+ENV UV_CACHE_DIR="/home/vscode/.cache/uv" \
+    UV_PYTHON_INSTALL_DIR="/home/vscode/.local/share/uv/python"
 
 RUN curl --fail --silent --show-error --location https://astral.sh/uv/install.sh | sh \
-    && uv --version
+    && uv --version \
+    && uv python install 3.12
 
 RUN curl --fail --silent --show-error --location https://chatgpt.com/codex/install.sh | sh \
     && codex --version
