@@ -1,0 +1,12 @@
+.git
+.terraform
+**/.terraform
+*.tfstate
+*.tfstate.*
+.aws
+.databricks
+.databrickscfg
+.env
+.env.*
+.venv
+__pycache__

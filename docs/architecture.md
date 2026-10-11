@@ -1,0 +1,38 @@
+# Architecture
+
+## Objective
+
+Provision one temporary Databricks Classic workspace in `us-east-1` with a
+Terraform-managed customer VPC. Configure future Classic Compute connectivity
+without creating or starting compute.
+
+## Component flow
+
+1. Terraform uses the local AWS identity to create VPC, IAM, and S3 resources.
+2. Terraform uses a Databricks account service principal to call account APIs.
+3. Databricks assumes the cross-account IAM role using the account ID as an
+   external ID.
+4. Databricks registers the two private subnets and security group as a network
+   configuration.
+5. Databricks registers the private S3 bucket as workspace root storage.
+6. Databricks creates the workspace from the credential, network, and storage IDs.
+7. Future Classic Compute would use private subnet addresses and the NAT Gateway
+   for required outbound control-plane connectivity.
+
+The cross-account role is not the identity that runs Terraform. It grants the
+Databricks control plane the documented permissions required to manage future
+Classic Compute resources in this AWS account. A future workload data-access
+role would be separate and is not part of this lab.
+
+## Availability trade-off
+
+Databricks requires two private workspace subnets in distinct Availability
+Zones. The lab uses one NAT Gateway in the first zone. If that zone fails,
+outbound connectivity can fail for both subnets. A production design commonly
+uses one NAT Gateway per zone, but that would double the fixed NAT cost here.
+
+## Excluded services
+
+The design excludes EC2 instances, Databricks clusters, SQL warehouses, jobs,
+load balancers, interface endpoints, PrivateLink, customer-managed encryption
+keys, and optional logging services.

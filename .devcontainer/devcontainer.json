@@ -1,0 +1,49 @@
+{
+  "name": "databricks-aws-terraform",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "remoteUser": "vscode",
+  "postCreateCommand": "bash .devcontainer/scripts/post-create.sh",
+  "mounts": [
+    "source=databricks-aws-terraform-aws-config,target=/home/vscode/.aws,type=volume",
+    "source=databricks-aws-terraform-databricks-config,target=/home/vscode/.databricks,type=volume",
+    "source=databricks-aws-terraform-codex-data,target=/home/vscode/.codex,type=volume"
+  ],
+  "containerEnv": {
+    "AWS_CONFIG_FILE": "/home/vscode/.aws/config",
+    "AWS_SHARED_CREDENTIALS_FILE": "/home/vscode/.aws/credentials",
+    "DATABRICKS_CONFIG_FILE": "/home/vscode/.databricks/config"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "openai.chatgpt",
+        "amazonwebservices.aws-toolkit-vscode",
+        "databricks.databricks",
+        "hashicorp.terraform",
+        "eamodio.gitlens",
+        "github.vscode-github-actions",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "redhat.vscode-yaml",
+        "timonwong.shellcheck",
+        "ms-azuretools.vscode-docker",
+        "davidanson.vscode-markdownlint"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": [
+          "tests"
+        ],
+        "python.analysis.typeCheckingMode": "basic",
+        "terraform.languageServer.enable": true,
+        "diffEditor.renderSideBySide": true,
+        "scm.diffDecorations": "all",
+        "git.decorations.enabled": true
+      }
+    }
+  }
+}

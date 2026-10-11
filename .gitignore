@@ -1,0 +1,41 @@
+# Terraform working data and sensitive artifacts
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+crash.log
+crash.*.log
+*.tfplan
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+**/backend.hcl
+
+# Local credentials and secret-bearing configuration
+.aws/
+.databricks/
+.databrickscfg
+.env
+.env.*
+!.env.example
+
+# Python, editor, and OS files
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+.DS_Store
+*.orig
+.vscode/
+.artifacts/
