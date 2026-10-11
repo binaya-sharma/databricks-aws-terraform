@@ -13,8 +13,10 @@ Last updated: 2026-10-11
 - The bucket has versioning, AES256 server-side encryption, bucket owner enforced ownership, and all S3 public access blocks enabled. `force_destroy_state_bucket` is false.
 - Bootstrap Terraform state is local under `infrastructure/bootstrap`. Keep that state file safe. It tracks the state bucket itself.
 - `infrastructure/environments/dev/backend.hcl` was generated from the bootstrap output and is ignored by Git. It points the development state to `databricks/dev/terraform.tfstate` in the state bucket.
-- The development backend is initialized against S3. No development VPC, Databricks workspace, NAT Gateway, or compute has been created.
-- Generated Terraform plans and the deferred development variables template are in the local ignored `tmp` directory. Plans are previews and must be regenerated after configuration or variable changes.
+- The development backend is initialized against S3.
+- The VPC foundation phase was applied with Terraform. It includes the VPC, three subnets, Internet Gateway, public and private route tables, route associations, and public Internet Gateway route.
+- NAT Gateway, Elastic IP, workspace security group, S3 workspace storage, cross-account IAM role, Databricks account resources, and compute have not been created.
+- Generated Terraform plans and the deferred development variables template are in the local ignored `tmp` directory. The VPC foundation plan has been applied. Regenerate plans after configuration or variable changes.
 
 ## Networking reference
 
@@ -35,11 +37,11 @@ The current Terraform code sets `map_public_ip_on_launch = false` for all three 
 
 1. Review the address plan and confirm `10.20.0.0/16` does not overlap any network this project needs to reach.
 2. Choose two distinct available Availability Zones in `us-east-1`. Availability Zone letters can map differently across AWS accounts.
-3. Confirm whether the next deployment is VPC foundation only or the full development platform. The development root composes networking, IAM, storage, and Databricks workspace resources. A full apply will not be VPC-only.
-4. For VPC foundation only, inspect a targeted plan and confirm that the intended resource addresses are selected. Terraform targeting is a limited workflow and should be followed by a full plan review before relying on the configuration as fully applied.
-5. Review the later networking phase: Elastic IP, NAT Gateway, private route behavior, security group rules, and default network ACL behavior in `infrastructure/modules/networking/main.tf`.
+3. Review the current VPC foundation in AWS and Terraform state before continuing.
+4. Confirm that the next stage is the remaining networking resources, not the full development platform. A full apply also includes IAM, storage, and Databricks account resources.
+5. Review the next networking phase: Elastic IP, NAT Gateway, private route behavior, security group rules, and default network ACL behavior in `infrastructure/modules/networking/main.tf`.
 6. Review the public IPv4 auto-assignment choice. If it changes, update Terraform and documentation before deployment.
-7. Review any plan before applying it. NAT Gateway and public IPv4 resources have ongoing charges.
+7. Review each plan before applying it. NAT Gateway and public IPv4 resources have ongoing charges.
 
 ## Current documentation
 
@@ -52,4 +54,4 @@ The current Terraform code sets `map_public_ip_on_launch = false` for all three 
 
 ## Reminder
 
-No networking walkthrough step has been applied in AWS. The new guide is instructional only. The existing Terraform network module defines the full planned stack, including an Elastic IP, one NAT Gateway, route tables, security group rules, and the S3 gateway endpoint.
+The VPC foundation guide remains instructional. Its foundation resources have been applied through Terraform, not manually through the console. The existing Terraform network module defines later resources too, including an Elastic IP, one NAT Gateway, security group rules, and the S3 gateway endpoint.

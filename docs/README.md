@@ -4,9 +4,9 @@ This is the documentation index and the stable starting point for understanding 
 
 ## Project status
 
-The repository defines a learning lab for a Databricks Classic workspace in AWS. The `dev` environment is implemented. The `qa` and `prod` directories are placeholders and do not contain deployable Terraform.
+The repository defines a learning lab for a Databricks Classic workspace in AWS. The `dev` environment is implemented. The `qa` and `prod` directories are placeholders and do not contain deployable Terraform. The bootstrap state bucket and first phase of the development VPC network have been applied. Later networking and Databricks resources remain uncreated.
 
-The infrastructure is designed to configure the customer VPC, Databricks account resources, and workspace without creating compute. No AWS deployment is implied by the presence of Terraform code or these instructions. Bootstrap and development deployment are separate steps.
+The infrastructure is designed to configure the customer VPC, Databricks account resources, and workspace without creating compute. Terraform code and instructions do not imply that later stages have been applied. Bootstrap and development deployment are separate steps.
 
 ## Documentation map
 

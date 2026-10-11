@@ -11,7 +11,7 @@ A long term learning reference for provisioning a Databricks Classic workspace i
 
 ## Current state
 
-Only `dev` has deployable environment configuration. `qa` and `prod` are placeholders. The bootstrap S3 bucket for Terraform state has already been created. No development VPC, workspace, NAT Gateway, or compute has been created. Bootstrap and development deployment are separate operations.
+Only `dev` has deployable environment configuration. `qa` and `prod` are placeholders. The bootstrap S3 bucket and the development VPC foundation have been created. The foundation includes the VPC, three subnets, Internet Gateway, and route tables. NAT, Elastic IP, security group, workspace storage, IAM, Databricks account resources, and compute have not been created. Bootstrap and later development stages remain separate operations.
 
 The development design includes one NAT Gateway and one public IPv4 address. Both incur charges while allocated, even when no compute is running. Review current prices and the plan before any apply.
 
