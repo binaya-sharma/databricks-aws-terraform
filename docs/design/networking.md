@@ -2,6 +2,8 @@
 
 For a console-based learning walkthrough covering VPC creation, subnet CIDRs, Internet Gateway routing, and public IPv4 assignment, see the [VPC foundation walkthrough](../step-by-step/vpc-foundation.md). This repository is managed by Terraform, so do not manually create the same project resources.
 
+For the distinction between Databricks control-plane provisioning and Classic Compute network traffic, see [why the architecture uses a NAT Gateway](../step-by-step/why-nat-gateway-for-databricks.md).
+
 ## Address plan
 
 | Network | CIDR | Purpose |

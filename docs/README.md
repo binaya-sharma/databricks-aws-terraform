@@ -18,6 +18,7 @@ The infrastructure is designed to configure the customer VPC, Databricks account
 ### Step by step
 
 - [VPC foundation](step-by-step/vpc-foundation.md) walks through VPC creation, CIDR planning, subnets, Internet Gateway routing, and public IPv4 assignment.
+- [Why Databricks Classic uses a NAT Gateway](step-by-step/why-nat-gateway-for-databricks.md) explains control-plane provisioning, compute egress, S3 routing, and cost trade-offs.
 
 ### Operations
 
