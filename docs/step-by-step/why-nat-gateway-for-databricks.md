@@ -76,6 +76,8 @@ Databricks **Secure Cluster Connectivity (SCC)** uses an outbound secure connect
 
 Other outbound destinations may include external APIs, libraries/package repositories, and AWS service endpoints for which we have not configured private endpoints. Required security group rules and destinations must follow the Databricks documentation.
 
+For a concise outbound and inbound example suitable for interviews, see [NAT Gateway interview notes](../interview/nat-gateway.md).
+
 ### 3. Databricks compute → Amazon S3 (storage)
 
 For **same-region S3 traffic**, our S3 Gateway Endpoint provides a more direct route:
@@ -138,14 +140,7 @@ Our lab uses **one NAT Gateway** to minimize cost. That is acceptable for a temp
 
 For a more resilient zonal NAT design, production environments often use **one NAT Gateway per AZ**, with private subnets routed through the gateway in their own AZ. Final design depends on security, availability, and cost requirements.
 
-Illustrative `us-east-1` rates (verify current prices before deployment):
-
-- NAT Gateway: approximately **$0.045/hour** while available, **plus data processing**.
-- Elastic IP/public IPv4 attached to it: approximately **$0.005/hour**.
-- Combined idle baseline for one NAT + one EIP: approximately **$0.05/hour**, or **$3.60 for 72 hours**, excluding traffic and other AWS/Databricks charges.
-- S3 Gateway Endpoint: **no additional endpoint charge**.
-
-**Very important for our $10 lab:** Even when **no Databricks clusters are running**, the NAT Gateway and its allocated public IPv4 address can continue to incur hourly charges. We should destroy the environment as soon as testing is complete and verify that the NAT Gateway and Elastic IP are gone.
+The NAT Gateway and its public IPv4 address can incur hourly charges even when no Databricks clusters are running. See [Cost estimation](../operations/cost-estimation.md) for the dated estimate and budget assumptions. The single-gateway availability trade-off is documented in [Architecture](../design/architecture.md).
 
 ## How this maps to Terraform
 

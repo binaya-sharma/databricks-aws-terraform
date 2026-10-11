@@ -8,30 +8,32 @@ This file collects questions that help explain the design and the reasoning behi
 
 A NAT Gateway lets Databricks compute in private subnets initiate outbound connections to Databricks services and other required endpoints without assigning public IP addresses to the compute nodes.
 
-### Example answer
+### Say it this way
 
-> Databricks Classic compute runs on EC2 instances in our private subnets. Those instances need outbound connectivity for control-plane communication and required AWS or external services. The private route table sends their default IPv4 traffic to a NAT Gateway in a public subnet. The NAT Gateway uses an Elastic IP and routes through the Internet Gateway. The compute nodes keep private IP addresses and do not accept unsolicited connections from the internet.
+> Databricks Classic compute runs in private subnets and needs outbound connectivity to Databricks and required services. Its route table sends public IPv4 traffic through a NAT Gateway and Internet Gateway. This gives compute outbound access without assigning it public IP addresses or allowing unsolicited inbound internet connections.
 
-### Example traffic flow
+### Examples
+
+Outbound, similar to this design:
 
 ```text
-Databricks compute node
-  -> private subnet route table
-  -> NAT Gateway
-  -> Internet Gateway
-  -> required public endpoint
+Private compute node -> NAT Gateway -> Internet Gateway -> required service
 ```
 
-The NAT Gateway provides network translation and outbound routing. IAM roles, AWS Security Token Service (STS), and AWS APIs handle authorization and resource provisioning. These are separate flows.
+Inbound, not used by this design:
 
-Same-region Amazon S3 traffic can use an S3 Gateway VPC Endpoint instead of the NAT Gateway. AWS adds a service prefix-list route to the selected route table, and the more-specific route is used for matching S3 destinations.
+```text
+User on internet -> Internet Gateway -> public load balancer -> private application server
+```
+
+The NAT Gateway does not accept unsolicited inbound connections. Secure Cluster Connectivity uses an outbound connection from compute to the Databricks control plane. For detailed traffic flows and S3 routing, see [Why Databricks Classic uses a NAT Gateway](../step-by-step/why-nat-gateway-for-databricks.md).
 
 ### Useful follow-up points
 
 - A NAT Gateway does not make the private subnet public. The private route table points to NAT, not directly to the Internet Gateway.
 - A NAT Gateway permits connections initiated from the private subnet and their return traffic. It does not provide unsolicited inbound access to private instances.
 - NAT is the conventional public-egress design, not the only possible architecture. A fully private design requires Databricks back-end PrivateLink and the necessary AWS service endpoints and routes.
-- NAT Gateway hourly and data-processing charges apply while it is provisioned. The public IPv4 address also has a charge. One NAT Gateway is a cost trade-off and a single-AZ dependency.
+- NAT Gateway hourly and data-processing charges apply while it is provisioned. See [Cost estimation](../operations/cost-estimation.md) for the lab estimate and [the NAT Gateway guide](../step-by-step/why-nat-gateway-for-databricks.md) for the single-AZ trade-off.
 
 ### How this applies to this repository
 

@@ -1,140 +1,58 @@
 # Deployment
 
-This guide describes the deployment sequence. A command in the guide does not
-approve an apply. Review each plan and get approval before applying it.
+The development Terraform root manages the full platform: VPC networking, NAT, security group, AWS storage and IAM, and Databricks account resources. A normal plan and apply is not a networking-only operation. Review the entire plan and confirm the target AWS and Databricks accounts before applying.
 
-The development root creates the complete platform: VPC networking, NAT Gateway,
-security group, S3 storage, IAM, and Databricks account resources. A normal
-development apply is not a VPC-only deployment. The [VPC foundation guide](../step-by-step/vpc-foundation.md)
-is a console learning walkthrough; it does not describe applying only part of
-the Terraform root. Do not apply the complete development plan until Databricks
-account access and all required values are ready. If deploying only networking,
-first define and review a supported Terraform workflow for that scope.
+The [VPC foundation](../step-by-step/vpc-foundation.md) is already applied. The current next phase is the remaining network resources. Do not use a normal full apply until the Databricks resources in its plan are intended as well.
 
-For the current VPC foundation learning phase, a targeted Terraform plan can
-show just the VPC, subnets, Internet Gateway, and routes. Terraform warns that
-targeting is for exceptional workflows. Review the exact target addresses and
-saved plan before any separately approved apply. This phase does not create the
-NAT Gateway, Elastic IP, security group, S3 storage, IAM role, or Databricks
-workspace.
+## Prerequisites
+
+1. Use the devcontainer and confirm Terraform is available.
+2. Verify the AWS identity and region.
+3. Confirm the intended VPC CIDRs and two distinct Availability Zones.
+4. For a full workspace deployment, confirm Databricks account admin access, Classic workspace eligibility, account ID, and OAuth machine-to-machine credentials.
+5. Review quotas and create budget alerts before adding the NAT Gateway and public IPv4 address.
 
 ```bash
-terraform -chdir=infrastructure/environments/dev plan \
-  -var-file=terraform.tfvars \
-  -target=module.platform.terraform_data.network_validation \
-  -target=module.platform.module.networking.aws_vpc.this \
-  -target=module.platform.module.networking.aws_internet_gateway.this \
-  -target=module.platform.module.networking.aws_subnet.public \
-  -target=module.platform.module.networking.aws_subnet.private \
-  -target=module.platform.module.networking.aws_route_table.public \
-  -target=module.platform.module.networking.aws_route.public_internet \
-  -target=module.platform.module.networking.aws_route_table_association.public \
-  -target=module.platform.module.networking.aws_route_table.private \
-  -target=module.platform.module.networking.aws_route_table_association.private \
-  -out=vpc-foundation.tfplan
-
-terraform -chdir=infrastructure/environments/dev show vpc-foundation.tfplan
-```
-
-Before applying this plan, confirm the active AWS identity, region, CIDRs, and
-resource list. After this phase, a normal full plan will include the remaining
-development platform resources. Do not apply that full plan until the later
-networking phase and Databricks deployment are intended.
-
-The S3 backend design and bucket lifecycle are documented in
-[Terraform state](../reference/terraform-state.md). The local toolchain is documented in
-[Development environment](development-environment.md).
-
-## 1. Confirm prerequisites
-
-1. Open the repository in the dev container.
-2. Confirm the AWS account and caller identity.
-3. Confirm the Databricks account ID and account-admin permission.
-4. Confirm the Databricks subscription permits Classic workspaces.
-5. Confirm the `us-west-2` AWS STS endpoint is active.
-6. Confirm AWS quotas for a VPC, NAT Gateway, and Elastic IP address.
-7. Confirm the development CIDRs do not overlap required networks.
-8. Create AWS Budget alerts.
-
-```bash
-aws sts get-caller-identity --profile <profile-name>
-aws configure get region --profile <profile-name>
+aws sts get-caller-identity --profile databricks-lab-admin
+aws configure get region --profile databricks-lab-admin
 databricks auth describe
 ```
 
-## 2. Configure local values
+## Configure local values
 
-Configure the `databricks-lab-admin` AWS profile using the [development environment guide](development-environment.md), then verify the account with `aws sts get-caller-identity --profile databricks-lab-admin`. Set `aws_profile = "databricks-lab-admin"` in the development variable file. Do not put AWS credentials in that file.
+Create `infrastructure/environments/dev/terraform.tfvars` using the required inputs in the tracked `variables.tf` and real account values. A deferred example template may exist under the local ignored `tmp/deferred` directory, but it is not distributed with the repository. Do not put OAuth secrets in Terraform variable files. Set the AWS profile to `databricks-lab-admin` or use the AWS credential chain.
 
-```bash
-cp infrastructure/bootstrap/terraform.tfvars.example \
-  infrastructure/bootstrap/terraform.tfvars
-```
+The S3 backend is already initialized. If the ignored `backend.hcl` is missing, regenerate it using the instructions in [Terraform state](../reference/terraform-state.md).
 
-The development variables template is deferred with the Databricks setup files
-under the local ignored `tmp/deferred` folder. Create the development variables
-file only when its deployment scope and real Databricks account values are
-ready. Do not put OAuth secrets in a variables file.
-
-## 3. Validate without cloud changes
+## Validate
 
 ```bash
 terraform fmt -recursive -check infrastructure
-terraform -chdir=infrastructure/bootstrap init -backend=false
-terraform -chdir=infrastructure/bootstrap validate
-terraform -chdir=infrastructure/environments/dev init -backend=false
 terraform -chdir=infrastructure/environments/dev validate
 ```
 
-## 4. Bootstrap remote state after separate approval
+## Plan and review
+
+Create a complete development plan and inspect it before applying:
 
 ```bash
-terraform -chdir=infrastructure/bootstrap plan -out=bootstrap.tfplan
-terraform -chdir=infrastructure/bootstrap show bootstrap.tfplan
-terraform -chdir=infrastructure/bootstrap apply bootstrap.tfplan
-```
-
-Generate the development backend configuration:
-
-```bash
-terraform -chdir=infrastructure/bootstrap output -json \
-  backend_hcl_by_environment | jq -r '.dev' \
-  > infrastructure/environments/dev/backend.hcl
-```
-
-The bootstrap bucket has its own local state unless you configure a separate
-backend for it. Protect and back up that local state. Do not destroy the bucket
-while the development state is still needed.
-
-## 5. Create and review the development plan
-
-```bash
-terraform -chdir=infrastructure/environments/dev init \
-  -backend-config=backend.hcl -reconfigure
-
 terraform -chdir=infrastructure/environments/dev plan -out=dev.tfplan
 terraform -chdir=infrastructure/environments/dev show dev.tfplan
 ```
 
-Check that the plan contains no cluster, EC2 instance, SQL warehouse, job, load
-balancer, interface endpoint, or unexpected service. Confirm one NAT Gateway and
-one Elastic IP address.
+The full plan may include a NAT Gateway, Elastic IP, security group, S3 endpoint, workspace root bucket, IAM role, Databricks credentials, network registration, and workspace. Confirm every resource and the expected cost. It must not include clusters, EC2 compute instances, SQL warehouses, jobs, load balancers, or unrelated services.
 
-## 6. Apply only after separate approval
+Targeted plans were used for the already-applied VPC foundation. Do not use a targeted plan as a substitute for reviewing the complete remaining configuration.
+
+## Apply and verify
+
+Apply only the reviewed plan after the deployment scope and all credentials are ready:
 
 ```bash
 terraform -chdir=infrastructure/environments/dev apply dev.tfplan
-```
-
-Terraform references enforce the intended dependency order. No arbitrary sleep
-is included. If AWS IAM propagation causes a documented Databricks credential
-validation error, review the actual error before changing the configuration.
-
-## 7. Verify without compute
-
-```bash
 scripts/verify.sh
 ```
 
-Do not click a UI action that launches a cluster or warehouse. Cluster launch
-capability remains configured but intentionally untested.
+Do not start a cluster or SQL warehouse during verification. Workspace provisioning does not require launching compute.
+
+For teardown, follow the ordered steps in [Cleanup](cleanup.md). Keep the bootstrap state bucket until development resources have been destroyed and verified.

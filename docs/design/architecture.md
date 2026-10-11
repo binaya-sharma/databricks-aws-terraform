@@ -37,9 +37,10 @@ role would be separate and is not part of this lab.
 ## Availability trade-off
 
 Databricks requires two private workspace subnets in distinct Availability
-Zones. The lab uses one NAT Gateway in the first zone. If that zone fails,
-outbound connectivity can fail for both subnets. A production design commonly
-uses one NAT Gateway per zone, but that would double the fixed NAT cost here.
+Zones. The lab plans one NAT Gateway in the first zone. If that zone fails,
+outbound connectivity can fail for both subnets. See [Cost estimation](../operations/cost-estimation.md)
+for the cost assumptions and [the NAT Gateway guide](../step-by-step/why-nat-gateway-for-databricks.md)
+for the design alternatives.
 
 ## Excluded services
 
