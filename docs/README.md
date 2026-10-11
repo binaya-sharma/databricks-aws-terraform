@@ -30,6 +30,7 @@ The infrastructure is designed to configure the customer VPC, Databricks account
 ### Reference
 
 - [Terraform state](reference/terraform-state.md) explains the S3 bootstrap bucket, backend configuration, and state handling.
+- [Interview questions](reference/interview-questions.md) collects concise answers, examples, and follow-up points for explaining the design.
 
 ### Working notes
 
