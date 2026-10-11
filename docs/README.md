@@ -24,6 +24,7 @@ The [repository README](../README.md) contains the project overview and current 
 ### Reference
 
 - [Terraform state](reference/terraform-state.md) explains bootstrap and environment state.
+- [Terraform modules and dependencies](reference/terraform-module-relationships.md) explains module inputs, generated IDs, dependency ordering, `depends_on`, locking, and drift.
 
 ### Interview preparation
 
