@@ -132,4 +132,6 @@ module "databricks_workspace" {
   credentials_id           = module.iam.credentials_id
   storage_configuration_id = module.storage.storage_configuration_id
   custom_tags              = local.common_tags
+
+  depends_on = [module.networking]
 }

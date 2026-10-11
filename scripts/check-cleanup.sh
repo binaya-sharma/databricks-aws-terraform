@@ -31,39 +31,58 @@ workspace_id="$(value '.workspace_id')"
 project_name="$(value '.project_name')"
 environment="$(value '.environment')"
 found=0
+unverified=0
 
 check_absent() {
     local label="$1"
+    local expected_not_found="$2"
+    shift
     shift
 
-    if "$@" >/dev/null 2>&1; then
+    local output
+    if output="$("$@" 2>&1)"; then
         printf '[FOUND] %s\n' "${label}"
         found=1
     else
-        printf '[ABSENT] %s\n' "${label}"
+        if [[ "${output}" =~ ${expected_not_found} ]]; then
+            printf '[ABSENT] %s\n' "${label}"
+        else
+            printf '[ERROR] Could not verify %s: %s\n' "${label}" "${output}" >&2
+            exit 2
+        fi
     fi
 }
 
-check_absent "VPC ${vpc_id}" \
+aws sts get-caller-identity --region "${aws_region}" >/dev/null
+
+check_absent "VPC ${vpc_id}" 'InvalidVpcID\.NotFound' \
     aws ec2 describe-vpcs --region "${aws_region}" --vpc-ids "${vpc_id}"
 
-nat_state="$(aws ec2 describe-nat-gateways \
+if nat_state="$(aws ec2 describe-nat-gateways \
     --region "${aws_region}" \
     --nat-gateway-ids "${nat_gateway_id}" \
     --query 'NatGateways[0].State' \
-    --output text 2>/dev/null || true)"
-if [[ -z "${nat_state}" || "${nat_state}" == "None" || "${nat_state}" == "deleted" ]]; then
-    printf '[ABSENT] NAT Gateway %s\n' "${nat_gateway_id}"
+    --output text 2>&1)"; then
+    if [[ -z "${nat_state}" || "${nat_state}" == "None" || "${nat_state}" == "deleted" ]]; then
+        printf '[ABSENT] NAT Gateway %s\n' "${nat_gateway_id}"
+    else
+        printf '[FOUND] NAT Gateway %s in state %s\n' "${nat_gateway_id}" "${nat_state}"
+        found=1
+    fi
 else
-    printf '[FOUND] NAT Gateway %s in state %s\n' "${nat_gateway_id}" "${nat_state}"
-    found=1
+    if [[ "${nat_state}" =~ InvalidNatGatewayID\.NotFound ]]; then
+        printf '[ABSENT] NAT Gateway %s\n' "${nat_gateway_id}"
+    else
+        printf '[ERROR] Could not verify NAT Gateway %s: %s\n' "${nat_gateway_id}" "${nat_state}" >&2
+        exit 2
+    fi
 fi
 
-check_absent "Elastic IP ${public_ip}" \
+check_absent "Elastic IP ${public_ip}" 'InvalidAddress\.NotFound' \
     aws ec2 describe-addresses --region "${aws_region}" --public-ips "${public_ip}"
-check_absent "IAM role ${role_name}" \
+check_absent "IAM role ${role_name}" 'NoSuchEntity' \
     aws iam get-role --role-name "${role_name}"
-check_absent "S3 bucket ${bucket_name}" \
+check_absent "S3 bucket ${bucket_name}" '(404|Not Found)' \
     aws s3api head-bucket --bucket "${bucket_name}"
 
 instance_ids="$(aws ec2 describe-instances \
@@ -97,15 +116,21 @@ else
 fi
 
 if command -v databricks >/dev/null 2>&1; then
-    check_absent "Databricks workspace ${workspace_id}" \
+    check_absent "Databricks workspace ${workspace_id}" '(NOT_FOUND|RESOURCE_DOES_NOT_EXIST|404)' \
         databricks account workspaces get "${workspace_id}" --output json
 else
-    printf '[SKIPPED] Databricks workspace check because the CLI is unavailable\n'
+    printf '[ERROR] Databricks workspace check could not run because the CLI is unavailable\n' >&2
+    unverified=1
 fi
 
 if ((found > 0)); then
     printf '%s\n' 'Cleanup is incomplete. Review every FOUND item without deleting unrelated resources.' >&2
     exit 1
+fi
+
+if ((unverified > 0)); then
+    printf '%s\n' 'Cleanup could not be fully verified.' >&2
+    exit 2
 fi
 
 printf '%s\n' 'Cleanup checks passed for the recorded project resources.'
