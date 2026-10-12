@@ -11,7 +11,7 @@ A long term learning reference for provisioning AWS networking as a foundation f
 
 ## Current state
 
-Only `dev` has deployable environment configuration. `qa` and `prod` are placeholders. The bootstrap S3 bucket and development VPC foundation have been created. The active dev root contains AWS networking only. Unstarted Databricks IAM, storage, and workspace modules are retained under `tobeimplement-temp/databricks/modules` for the later phase. See the [project phase tracker](docs/reference/project-phases.md) for status and next steps.
+Only `dev` has deployable environment configuration. `qa` and `prod` are placeholders. The bootstrap S3 state bucket remains. The development VPC and networking were applied, verified, and then destroyed; Terraform state remains in the bootstrap bucket. The active dev root contains AWS networking only. Unstarted Databricks IAM, storage, and workspace modules are retained under `tobeimplement-temp/databricks/modules` for the later phase. See the [project phase tracker](docs/reference/project-phases.md) for status and next steps.
 
 The development design includes one NAT Gateway and one public IPv4 address. Both incur charges while allocated, even when no compute is running. Review current prices and the plan before any apply.
 

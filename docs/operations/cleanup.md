@@ -1,69 +1,42 @@
 # Cleanup
 
-Cleanup is part of the lab, not an optional final task.
+The dev root currently manages AWS networking only. Its destroy does not remove the separate bootstrap S3 bucket that stores remote Terraform state.
 
-## 1. Capture exact resource identifiers
+## Review and destroy dev networking
 
-Run before destroy:
-
-```bash
-scripts/verify.sh
-```
-
-This writes non-sensitive identifiers to `.artifacts/dev-deployment.json`. The
-directory is ignored by Git.
-
-## 2. Review a development destroy plan
+Capture resource identifiers before destroy:
 
 ```bash
-terraform -chdir=infrastructure/environments/dev plan -destroy \
-  -out=destroy.tfplan
-terraform -chdir=infrastructure/environments/dev show destroy.tfplan
+AWS_PROFILE=databricks-lab-admin scripts/verify.sh
 ```
 
-Confirm the plan targets only development resources owned by this project.
-Never delete resources using broad name matching.
-
-## 3. Destroy development after approval
+Create and inspect a destroy plan from the dev root:
 
 ```bash
-terraform -chdir=infrastructure/environments/dev apply destroy.tfplan
+AWS_PROFILE=databricks-lab-admin terraform -chdir=infrastructure/environments/dev plan \
+  -destroy -input=false -var-file=terraform.tfvars -out=/tmp/dev-destroy.tfplan
+terraform -chdir=infrastructure/environments/dev show /tmp/dev-destroy.tfplan
 ```
 
-The workspace must be deleted before the Databricks network, storage, and
-credential configuration objects. Terraform derives this order from references.
-The S3 workspace root bucket uses `force_destroy` for this disposable lab, so
-Terraform can remove provider-created objects and versions.
-
-## 4. Run read-only residual checks
+Confirm the plan targets only this project's dev networking resources. Apply the reviewed plan:
 
 ```bash
-scripts/check-cleanup.sh
+AWS_PROFILE=databricks-lab-admin terraform -chdir=infrastructure/environments/dev apply \
+  -input=false /tmp/dev-destroy.tfplan
 ```
 
-The script checks the exact recorded VPC, NAT Gateway, Elastic IP, IAM role, S3
-bucket, workspace, and project-tagged EC2 and EBS resources. It never deletes
-anything.
+## Verify cleanup
 
-Review the AWS Billing console, Cost Explorer, Elastic IP addresses, NAT
-Gateways, S3 buckets, IAM roles, EC2 instances, and EBS volumes after the script.
-Also review the Databricks account console for failed or deleting workspaces.
-
-## 5. Retire remote state last
-
-Only after development cleanup succeeds:
+Run the read-only residual checks:
 
 ```bash
-terraform -chdir=infrastructure/bootstrap plan -destroy \
-  -out=bootstrap-destroy.tfplan
-terraform -chdir=infrastructure/bootstrap show bootstrap-destroy.tfplan
-terraform -chdir=infrastructure/bootstrap apply bootstrap-destroy.tfplan
+AWS_PROFILE=databricks-lab-admin scripts/check-cleanup.sh
 ```
 
-`force_destroy_state_bucket` must be `true` for a complete lab teardown. This
-deletes all state object versions and removes the recovery history. Save any
-required non-secret evidence before this final step.
+The check uses `.artifacts/dev-deployment.json`, recorded before destroy, to verify the VPC, NAT Gateway, Elastic IP, security group, S3 Gateway Endpoint, and tagged EC2 and EBS resources. It never deletes anything. Review AWS billing and confirm the NAT Gateway and public IPv4 charges have stopped.
 
-Do not cancel a Databricks plan as part of normal workspace cleanup. Plan
-cancellation affects the whole account and is not equivalent to deleting this
-project's workspace.
+## Preserve the bootstrap backend
+
+Keep the bootstrap S3 state bucket and local bootstrap state while you may recreate the dev environment. The dev state remains in the bucket after its managed resources are destroyed, which lets Terraform track the empty environment and later provision it again.
+
+Retiring the bootstrap bucket is a separate final action. It deletes remote state history and requires setting `force_destroy_state_bucket = true`; do that only when you are retiring the project and no longer need the backend.

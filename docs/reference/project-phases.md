@@ -6,7 +6,7 @@ Last reviewed: 2026-10-12
 
 ## Phase 1: Terraform state bootstrap
 
-**Status: Complete**
+**Status: Complete and retained**
 
 - The S3 bucket for remote Terraform state has been created.
 - Bootstrap state remains local in `infrastructure/bootstrap/terraform.tfstate`; preserve it while Terraform manages the bucket.
@@ -14,26 +14,28 @@ Last reviewed: 2026-10-12
 
 ## Phase 2: AWS VPC foundation
 
-**Status: Complete**
+**Status: Completed and currently destroyed**
 
-- VPC with DNS support and DNS hostnames.
+- VPC with DNS support and DNS hostnames. The VPC has since been destroyed.
 - Three subnets: one public and two private.
 - Internet Gateway, public and private route tables, route associations, and the public Internet Gateway route.
 - Public IPv4 auto-assignment is disabled.
 
-## Phase 3: Remaining AWS networking
+## Phase 3: AWS networking completion
 
-**Status: Not complete**
+**Status: Completed, verified, and currently destroyed**
 
-The active Terraform root contains the planned networking configuration. Review the full plan and costs before applying the remaining resources.
+The active Terraform root now manages the complete planned networking layer:
 
-- Elastic IP and NAT Gateway.
-- Private route to the NAT Gateway.
-- Workspace security group rules.
+- Elastic IP and public NAT Gateway.
+- Private default route through the NAT Gateway.
+- Workspace security group and its configured rules.
 - S3 Gateway Endpoint.
-- Review the default network ACL and verify subnet settings.
+- Default network ACL retained; public IPv4 auto-assignment remains disabled.
 
-Use [deployment](../operations/deployment.md), [cleanup](../operations/cleanup.md), and the [networking design](../design/networking.md) while completing this phase.
+Terraform applied 13 resources with no changes to existing resources and no destroys. A follow-up plan reported no changes. AWS reported the NAT Gateway and S3 Gateway Endpoint as `available`. The dev networking destroy later removed 25 resources, including the VPC foundation, NAT Gateway, security group, and endpoint. The bootstrap state bucket remains intact.
+
+Use [deployment](../operations/deployment.md), [cleanup](../operations/cleanup.md), and the [networking design](../design/networking.md) when recreating this phase.
 
 ## Phase 4: Databricks account integration and workspace
 
@@ -65,4 +67,4 @@ Before starting, confirm Databricks account access, account ID, authentication, 
 
 ## Current scope
 
-The active dev Terraform root should plan AWS networking only. It must not plan Databricks account resources, workspace storage, clusters, SQL warehouses, jobs, or other compute. See the [scratchpad](../scratchpad.md) for the immediate resume point.
+The active dev Terraform root should plan AWS networking only. It must not plan Databricks account resources, workspace root storage, clusters, SQL warehouses, jobs, or other compute. See the [scratchpad](../scratchpad.md) for the immediate resume point.

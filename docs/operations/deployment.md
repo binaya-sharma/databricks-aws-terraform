@@ -2,7 +2,7 @@
 
 The development Terraform root currently manages AWS networking only. Databricks IAM, workspace storage, and workspace modules are parked under `tobeimplement-temp/databricks/modules` and are not part of the active Terraform graph. The active networking module includes the VPC, subnets, NAT, security group, route tables, and optional S3 endpoint.
 
-The [VPC foundation](../step-by-step/vpc-foundation.md) is already applied. The current next phase is the remaining AWS networking resources. The active plan should not contain Databricks account resources.
+The VPC foundation and remaining AWS networking were applied and verified, then destroyed. The dev backend state is empty. A normal plan will propose recreating the AWS network; it should not contain Databricks account resources.
 
 ## Prerequisites
 
@@ -29,6 +29,12 @@ The actual local file is `infrastructure/environments/dev/terraform.tfvars`. Ter
 
 The S3 backend is already initialized. If the ignored `backend.hcl` is missing, regenerate it using the instructions in [Terraform state](../reference/terraform-state.md).
 
+Terraform's S3 backend uses the AWS credential chain independently of the AWS provider settings in `terraform.tfvars`. Set the profile in the environment so backend operations, Terraform, and the AWS CLI use the same identity:
+
+```bash
+export AWS_PROFILE=databricks-lab-admin
+```
+
 ## Validate
 
 ```bash
@@ -41,7 +47,7 @@ terraform -chdir=infrastructure/environments/dev validate
 Create a complete development plan and inspect it before applying:
 
 ```bash
-terraform -chdir=infrastructure/environments/dev plan \
+AWS_PROFILE=databricks-lab-admin terraform -chdir=infrastructure/environments/dev plan \
   -var-file=terraform.tfvars -out=dev.tfplan
 terraform -chdir=infrastructure/environments/dev show dev.tfplan
 ```
@@ -55,8 +61,8 @@ Targeted plans were used for the already-applied VPC foundation. Do not use a ta
 Apply only the reviewed plan after confirming the AWS account, deployment scope, and AWS credentials:
 
 ```bash
-terraform -chdir=infrastructure/environments/dev apply dev.tfplan
-scripts/verify.sh
+AWS_PROFILE=databricks-lab-admin terraform -chdir=infrastructure/environments/dev apply dev.tfplan
+AWS_PROFILE=databricks-lab-admin scripts/verify.sh
 ```
 
 The current phase does not create or start Databricks workspaces or compute.

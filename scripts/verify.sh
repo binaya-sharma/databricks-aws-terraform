@@ -13,68 +13,56 @@ for command_name in terraform aws jq; do
 done
 
 summary="$(terraform -chdir="${environment_dir}" output -json deployment_summary)"
-
 value() {
     jq -r "$1" <<<"${summary}"
 }
 
 aws_region="$(value '.aws_region')"
 vpc_id="$(value '.vpc_id')"
+public_subnet_id="$(value '.public_subnet_id')"
 nat_gateway_id="$(value '.nat_gateway_id')"
 security_group_id="$(value '.security_group_id')"
-role_name="$(value '.cross_account_role_name')"
-bucket_name="$(value '.root_bucket_name')"
-workspace_id="$(value '.workspace_id')"
-workspace_url="$(value '.workspace_url')"
-
+s3_gateway_endpoint_id="$(value '.s3_gateway_endpoint_id')"
 mapfile -t private_subnet_ids < <(jq -r '.private_subnet_ids[]' <<<"${summary}")
 
-printf 'Verifying AWS resources in %s\n' "${aws_region}"
+printf 'Verifying AWS networking in %s\n' "${aws_region}"
+aws sts get-caller-identity --output table
 aws ec2 describe-vpcs \
     --region "${aws_region}" \
     --vpc-ids "${vpc_id}" \
-    --query 'Vpcs[0].{VpcId:VpcId,CidrBlock:CidrBlock,State:State}'
-
+    --query 'Vpcs[0].{VpcId:VpcId,CidrBlock:CidrBlock,State:State}' \
+    --output table
 aws ec2 describe-subnets \
     --region "${aws_region}" \
-    --subnet-ids "${private_subnet_ids[@]}" \
-    --query 'Subnets[].{SubnetId:SubnetId,Cidr:CidrBlock,AZ:AvailabilityZone,PublicIpOnLaunch:MapPublicIpOnLaunch}'
-
+    --subnet-ids "${public_subnet_id}" "${private_subnet_ids[@]}" \
+    --query 'Subnets[].{SubnetId:SubnetId,Cidr:CidrBlock,AZ:AvailabilityZone,PublicIpOnLaunch:MapPublicIpOnLaunch}' \
+    --output table
 aws ec2 describe-route-tables \
     --region "${aws_region}" \
-    --filters "Name=association.subnet-id,Values=${private_subnet_ids[0]},${private_subnet_ids[1]}" \
-    --query 'RouteTables[].{RouteTableId:RouteTableId,Routes:Routes}'
-
+    --filters "Name=vpc-id,Values=${vpc_id}" \
+    --query 'RouteTables[].{RouteTableId:RouteTableId,Associations:Associations[].SubnetId,Routes:Routes[].{Destination:DestinationCidrBlock,Gateway:GatewayId,Nat:NatGatewayId,State:State}}' \
+    --output json
 aws ec2 describe-nat-gateways \
     --region "${aws_region}" \
     --nat-gateway-ids "${nat_gateway_id}" \
-    --query 'NatGateways[0].{NatGatewayId:NatGatewayId,State:State,SubnetId:SubnetId,PublicIp:NatGatewayAddresses[0].PublicIp}'
-
+    --query 'NatGateways[0].{NatGatewayId:NatGatewayId,State:State,SubnetId:SubnetId,PublicIp:NatGatewayAddresses[0].PublicIp}' \
+    --output table
 aws ec2 describe-security-group-rules \
     --region "${aws_region}" \
     --filters "Name=group-id,Values=${security_group_id}" \
-    --query 'SecurityGroupRules[].{Egress:IsEgress,Protocol:IpProtocol,From:FromPort,To:ToPort,Cidr:CidrIpv4,ReferencedGroup:ReferencedGroupInfo.GroupId}'
+    --query 'SecurityGroupRules[].{Egress:IsEgress,Protocol:IpProtocol,From:FromPort,To:ToPort,Cidr:CidrIpv4,ReferencedGroup:ReferencedGroupInfo.GroupId}' \
+    --output table
 
-aws s3api head-bucket --bucket "${bucket_name}"
-aws iam get-role --role-name "${role_name}" --query 'Role.{RoleName:RoleName,Arn:Arn}'
-
-printf 'Verifying Databricks account workspace %s\n' "${workspace_id}"
-databricks account workspaces get "${workspace_id}" --output json \
-    | jq '{workspace_id, workspace_name, workspace_status, workspace_status_message, workspace_url}'
-
-if [[ -n "${DATABRICKS_WORKSPACE_PROFILE:-}" ]]; then
-    clusters="$(databricks clusters list --profile "${DATABRICKS_WORKSPACE_PROFILE}" --output json)"
-    cluster_count="$(jq 'length' <<<"${clusters}")"
-    printf 'Clusters returned for the last 30 days: %s\n' "${cluster_count}"
-    jq '[.[] | {cluster_id, cluster_name, state}]' <<<"${clusters}"
-else
-    printf '%s\n' \
-        "Cluster verification skipped." \
-        "Set DATABRICKS_WORKSPACE_PROFILE to a profile for ${workspace_url} and run again."
+if [[ -n "${s3_gateway_endpoint_id}" && "${s3_gateway_endpoint_id}" != "null" ]]; then
+    aws ec2 describe-vpc-endpoints \
+        --region "${aws_region}" \
+        --vpc-endpoint-ids "${s3_gateway_endpoint_id}" \
+        --query 'VpcEndpoints[0].{Id:VpcEndpointId,State:State,Type:VpcEndpointType,Service:ServiceName}' \
+        --output table
 fi
 
 mkdir -p "${artifact_dir}"
 umask 077
 printf '%s\n' "${summary}" >"${artifact_dir}/dev-deployment.json"
-printf 'Saved non-sensitive cleanup evidence to %s\n' \
+printf 'Saved deployment summary to %s\n' \
     "${artifact_dir}/dev-deployment.json"

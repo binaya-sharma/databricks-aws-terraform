@@ -25,31 +25,26 @@ aws_region="$(value '.aws_region')"
 vpc_id="$(value '.vpc_id')"
 nat_gateway_id="$(value '.nat_gateway_id')"
 public_ip="$(value '.nat_gateway_public_ip')"
-role_name="$(value '.cross_account_role_name')"
-bucket_name="$(value '.root_bucket_name')"
-workspace_id="$(value '.workspace_id')"
+security_group_id="$(value '.security_group_id')"
+s3_gateway_endpoint_id="$(value '.s3_gateway_endpoint_id')"
 project_name="$(value '.project_name')"
 environment="$(value '.environment')"
 found=0
-unverified=0
 
 check_absent() {
     local label="$1"
     local expected_not_found="$2"
-    shift
-    shift
+    shift 2
 
     local output
     if output="$("$@" 2>&1)"; then
         printf '[FOUND] %s\n' "${label}"
         found=1
+    elif [[ "${output}" =~ ${expected_not_found} ]]; then
+        printf '[ABSENT] %s\n' "${label}"
     else
-        if [[ "${output}" =~ ${expected_not_found} ]]; then
-            printf '[ABSENT] %s\n' "${label}"
-        else
-            printf '[ERROR] Could not verify %s: %s\n' "${label}" "${output}" >&2
-            exit 2
-        fi
+        printf '[ERROR] Could not verify %s: %s\n' "${label}" "${output}" >&2
+        exit 2
     fi
 }
 
@@ -69,21 +64,22 @@ if nat_state="$(aws ec2 describe-nat-gateways \
         printf '[FOUND] NAT Gateway %s in state %s\n' "${nat_gateway_id}" "${nat_state}"
         found=1
     fi
+elif [[ "${nat_state}" =~ InvalidNatGatewayID\.NotFound ]]; then
+    printf '[ABSENT] NAT Gateway %s\n' "${nat_gateway_id}"
 else
-    if [[ "${nat_state}" =~ InvalidNatGatewayID\.NotFound ]]; then
-        printf '[ABSENT] NAT Gateway %s\n' "${nat_gateway_id}"
-    else
-        printf '[ERROR] Could not verify NAT Gateway %s: %s\n' "${nat_gateway_id}" "${nat_state}" >&2
-        exit 2
-    fi
+    printf '[ERROR] Could not verify NAT Gateway %s: %s\n' "${nat_gateway_id}" "${nat_state}" >&2
+    exit 2
 fi
 
 check_absent "Elastic IP ${public_ip}" 'InvalidAddress\.NotFound' \
     aws ec2 describe-addresses --region "${aws_region}" --public-ips "${public_ip}"
-check_absent "IAM role ${role_name}" 'NoSuchEntity' \
-    aws iam get-role --role-name "${role_name}"
-check_absent "S3 bucket ${bucket_name}" '(404|Not Found)' \
-    aws s3api head-bucket --bucket "${bucket_name}"
+check_absent "Security group ${security_group_id}" 'InvalidGroup\.NotFound' \
+    aws ec2 describe-security-groups --region "${aws_region}" --group-ids "${security_group_id}"
+
+if [[ -n "${s3_gateway_endpoint_id}" && "${s3_gateway_endpoint_id}" != "null" ]]; then
+    check_absent "S3 Gateway Endpoint ${s3_gateway_endpoint_id}" 'InvalidVpcEndpointId\.NotFound' \
+        aws ec2 describe-vpc-endpoints --region "${aws_region}" --vpc-endpoint-ids "${s3_gateway_endpoint_id}"
+fi
 
 instance_ids="$(aws ec2 describe-instances \
     --region "${aws_region}" \
@@ -115,22 +111,9 @@ else
     printf '[ABSENT] Tagged EBS volumes\n'
 fi
 
-if command -v databricks >/dev/null 2>&1; then
-    check_absent "Databricks workspace ${workspace_id}" '(NOT_FOUND|RESOURCE_DOES_NOT_EXIST|404)' \
-        databricks account workspaces get "${workspace_id}" --output json
-else
-    printf '[ERROR] Databricks workspace check could not run because the CLI is unavailable\n' >&2
-    unverified=1
-fi
-
 if ((found > 0)); then
-    printf '%s\n' 'Cleanup is incomplete. Review every FOUND item without deleting unrelated resources.' >&2
+    printf '%s\n' 'Networking cleanup is incomplete. Review every FOUND item without deleting unrelated resources.' >&2
     exit 1
 fi
 
-if ((unverified > 0)); then
-    printf '%s\n' 'Cleanup could not be fully verified.' >&2
-    exit 2
-fi
-
-printf '%s\n' 'Cleanup checks passed for the recorded project resources.'
+printf '%s\n' 'Networking cleanup checks passed for the recorded project resources.'
