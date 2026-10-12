@@ -1,0 +1,21 @@
+# Copy to terraform.tfvars and set local environment values.
+# Keep terraform.tfvars local. It is ignored by Git.
+aws_region   = "us-east-1"
+aws_profile  = "databricks-lab-admin"
+environment  = "dev"
+project_name = "databricks-aws-terraform"
+owner        = "replace-with-your-name-or-team"
+
+# Coordinate the VPC and subnet ranges with networks this VPC may connect to.
+vpc_cidr             = "10.20.0.0/16"
+public_subnet_cidr   = "10.20.1.0/24"
+private_subnet_cidrs = ["10.20.11.0/24", "10.20.12.0/24"]
+
+# Choose two distinct Availability Zones available in this AWS account.
+availability_zones   = ["us-east-1a", "us-east-1b"]
+
+enable_s3_gateway_endpoint    = true
+
+additional_tags = {
+  CostCenter = "Personal"
+}

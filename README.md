@@ -1,6 +1,6 @@
 # Databricks on AWS with Terraform
 
-A long term learning reference for provisioning a Databricks Classic workspace in a customer managed Amazon VPC. Terraform configures the AWS and Databricks account resources. The project does not create clusters or other compute.
+A long term learning reference for provisioning AWS networking as a foundation for a future Databricks Classic workspace. The active Terraform configuration currently manages AWS networking only.
 
 ## Start here
 
@@ -11,7 +11,7 @@ A long term learning reference for provisioning a Databricks Classic workspace i
 
 ## Current state
 
-Only `dev` has deployable environment configuration. `qa` and `prod` are placeholders. The bootstrap S3 bucket and the development VPC foundation have been created. The foundation includes the VPC, three subnets, Internet Gateway, and route tables. NAT, Elastic IP, security group, workspace storage, IAM, Databricks account resources, and compute have not been created. Bootstrap and later development stages remain separate operations.
+Only `dev` has deployable environment configuration. `qa` and `prod` are placeholders. The bootstrap S3 bucket and development VPC foundation have been created. The active dev root contains AWS networking only. Unstarted Databricks IAM, storage, and workspace modules are retained under `tobeimplement-temp/databricks/modules` for the later phase. See the [project phase tracker](docs/reference/project-phases.md) for status and next steps.
 
 The development design includes one NAT Gateway and one public IPv4 address. Both incur charges while allocated, even when no compute is running. Review current prices and the plan before any apply.
 
@@ -21,11 +21,9 @@ The development design includes one NAT Gateway and one public IPv4 address. Bot
 | --- | --- |
 | `infrastructure/bootstrap` | Creates the S3 bucket used for remote Terraform state. |
 | `infrastructure/environments/dev` | Development root module and remote backend configuration point. |
-| `infrastructure/modules/platform` | Composes networking, IAM, storage, and Databricks workspace modules. |
+| `infrastructure/modules/platform` | Composes the active AWS networking module. |
 | `infrastructure/modules/networking` | VPC, subnets, routes, NAT Gateway, security group, and S3 endpoint. |
-| `infrastructure/modules/iam` | AWS role and Databricks credential registration. |
-| `infrastructure/modules/storage` | Private workspace root bucket and Databricks storage registration. |
-| `infrastructure/modules/databricks-workspace` | Databricks network and workspace account resources. |
+| `tobeimplement-temp/databricks/modules` | Unstarted Databricks IAM, storage, and workspace Terraform modules, retained for the later phase. |
 | `docs` | Project guide and operating references. |
 | `diagrams` | Standalone architecture diagram. |
 | `.devcontainer` | Reproducible local development environment. |
@@ -33,4 +31,4 @@ The development design includes one NAT Gateway and one public IPv4 address. Bot
 
 ## Operating boundary
 
-Review the complete plan and confirm the AWS account, region, Databricks account, resources, and expected cost before any apply. Applying or destroying infrastructure requires explicit approval. See [deployment](docs/operations/deployment.md) and [cleanup](docs/operations/cleanup.md).
+Review the complete plan and confirm the AWS account, region, resources, and expected cost before any apply. Applying or destroying infrastructure requires explicit approval. See [deployment](docs/operations/deployment.md) and [cleanup](docs/operations/cleanup.md).

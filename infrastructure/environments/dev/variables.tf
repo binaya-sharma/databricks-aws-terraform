@@ -38,7 +38,7 @@ variable "public_subnet_cidr" {
 }
 
 variable "private_subnet_cidrs" {
-  description = "Two private subnet CIDRs used by Databricks."
+  description = "Two private subnet CIDRs for the development VPC."
   type        = list(string)
 }
 
@@ -47,32 +47,10 @@ variable "availability_zones" {
   type        = list(string)
 }
 
-variable "databricks_account_id" {
-  description = "Databricks account ID from the account console."
-  type        = string
-}
-
-variable "databricks_workspace_name" {
-  description = "Name displayed for the Databricks workspace."
-  type        = string
-}
-
 variable "enable_s3_gateway_endpoint" {
   description = "Create the no-hourly-charge S3 gateway endpoint."
   type        = bool
   default     = true
-}
-
-variable "force_destroy_root_bucket" {
-  description = "Allow cleanup of all disposable root-bucket objects."
-  type        = bool
-  default     = true
-}
-
-variable "enable_root_bucket_versioning" {
-  description = "Enable object versioning on the workspace root bucket."
-  type        = bool
-  default     = false
 }
 
 variable "additional_tags" {

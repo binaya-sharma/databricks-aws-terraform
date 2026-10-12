@@ -56,32 +56,10 @@ variable "availability_zones" {
   type        = list(string)
 }
 
-variable "databricks_account_id" {
-  description = "Databricks account ID from the account console."
-  type        = string
-}
-
-variable "databricks_workspace_name" {
-  description = "Name displayed for the Databricks workspace."
-  type        = string
-}
-
 variable "enable_s3_gateway_endpoint" {
   description = "Create the free S3 gateway endpoint on the private route table."
   type        = bool
   default     = true
-}
-
-variable "force_destroy_root_bucket" {
-  description = "Allow Terraform to empty the disposable workspace root bucket during destroy."
-  type        = bool
-  default     = true
-}
-
-variable "enable_root_bucket_versioning" {
-  description = "Enable object versioning on the workspace root bucket."
-  type        = bool
-  default     = false
 }
 
 variable "additional_tags" {

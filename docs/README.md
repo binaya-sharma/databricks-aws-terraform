@@ -23,8 +23,13 @@ The [repository README](../README.md) contains the project overview and current 
 
 ### Reference
 
+- [Project phases](reference/project-phases.md) tracks completed work and later phases.
 - [Terraform state](reference/terraform-state.md) explains bootstrap and environment state.
 - [Terraform modules and dependencies](reference/terraform-module-relationships.md) explains module inputs, generated IDs, dependency ordering, `depends_on`, locking, and drift.
+
+### Learning notes
+
+- [Terraform resource block](learning/terraform-resource-block.md) explains the basic resource declaration and how to reference a resource.
 
 ### Interview preparation
 

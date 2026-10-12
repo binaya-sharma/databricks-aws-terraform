@@ -7,7 +7,7 @@ Terraform state records the resources managed by each configuration. This reposi
 | State | Terraform root | Location | Purpose |
 | --- | --- | --- | --- |
 | Bootstrap | `infrastructure/bootstrap` | Local state by default | Creates the S3 bucket used by environment states. |
-| Development | `infrastructure/environments/dev` | S3 object configured by `backend.hcl` | Tracks the development platform and Databricks workspace. |
+| Development | `infrastructure/environments/dev` | S3 object configured by `backend.hcl` | Tracks the active AWS networking resources. |
 
 The bootstrap state must remain available while the development state bucket is in use. The bootstrap configuration currently uses local state unless a backend is configured separately. Protect that local state file and keep a secure backup.
 

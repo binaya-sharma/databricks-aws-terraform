@@ -1,92 +1,79 @@
 # Terraform modules and dependencies
 
-This guide explains how Terraform passes configuration through this repository, how resource IDs flow between modules, and how Terraform decides creation order.
+This guide follows the active AWS networking configuration. Databricks integration modules are deferred and are not part of the active Terraform graph.
 
-## Start at the development root
+## Active module hierarchy
 
-Terraform treats the `.tf` files in the directory where you run it as the root module. For this project, the development root is `infrastructure/environments/dev`.
-
-The dev root configures the AWS and Databricks providers, calls the platform module, and exposes deployment outputs. See [dev root providers and platform call](../../infrastructure/environments/dev/main.tf#L18-L61).
-
-The module hierarchy is:
+Terraform treats the `.tf` files in the directory where you run it as the root module. In this repository, the dev root is `infrastructure/environments/dev`.
 
 ```text
 infrastructure/environments/dev  (root module)
 └── infrastructure/modules/platform
-    ├── infrastructure/modules/networking
-    ├── infrastructure/modules/iam
-    ├── infrastructure/modules/storage
-    └── infrastructure/modules/databricks-workspace
+    └── infrastructure/modules/networking
 ```
 
-The parent calls a child with a `module` block. The `source` path identifies the child module. Inputs in that block pass values into the child. The platform composition is in [platform `main.tf`](../../infrastructure/modules/platform/main.tf#L76-L137).
+The root configures the AWS provider and passes values into the platform module. The platform module validates the network inputs and calls the networking module. The deferred Databricks modules are kept in `tobeimplement-temp/databricks/modules`; they are not referenced by this hierarchy.
 
 ## How `name_prefix` is built and passed
 
-The dev root declares `project_name` with the default `databricks-aws-terraform` and `environment` with the default `dev` in [dev variables](../../infrastructure/environments/dev/variables.tf#L13-L23). The dev root passes both into the platform module in [dev `main.tf`](../../infrastructure/environments/dev/main.tf#L47-L50).
+The dev root declares `project_name` with the default `databricks-aws-terraform` and `environment` with the default `dev` in [dev variables](../../infrastructure/environments/dev/variables.tf). It passes those values to the platform module in [dev main](../../infrastructure/environments/dev/main.tf).
 
-The platform module combines them in a local value:
+The platform combines them in a local value:
 
 ```hcl
 name_prefix = "${var.project_name}-${var.environment}"
 ```
 
-That produces `databricks-aws-terraform-dev`. The platform then passes `local.name_prefix` to networking, IAM, storage, and the workspace module. For example, the networking call passes it at [platform `main.tf`, networking inputs](../../infrastructure/modules/platform/main.tf#L76-L88). The networking module declares it as an input in [networking `variables.tf`](../../infrastructure/modules/networking/variables.tf).
+That produces `databricks-aws-terraform-dev`. The platform passes `local.name_prefix` to the networking module in [platform main](../../infrastructure/modules/platform/main.tf). The networking module declares it as an input in [networking variables](../../infrastructure/modules/networking/variables.tf).
 
-The value is configured at the root and handed through the module calls. It is not independently set in every child module.
+The name is configured once at the root and handed through the module calls. Each child does not independently invent a project name.
 
-## How resource IDs are passed
+## How resource IDs flow
 
-Terraform and the cloud providers return IDs when resources are created. Each module can expose those values with `output` blocks, then the parent can pass the outputs to another module.
+AWS assigns resource IDs when resources are created. The networking module exposes them through outputs, and the platform module re-exports the outputs needed by the root.
 
-| Workspace input | Produced by | Code link |
+| Value | Produced by | Used for |
 | --- | --- | --- |
-| `vpc_id` | AWS VPC resource in networking | [Networking output](../../infrastructure/modules/networking/outputs.tf#L1-L4) |
-| `private_subnet_ids` | AWS private subnet resources in networking | [Networking output](../../infrastructure/modules/networking/outputs.tf#L11-L14) |
-| `security_group_id` | AWS security group resource in networking | [Networking output](../../infrastructure/modules/networking/outputs.tf#L21-L24) |
-| `credentials_id` | Databricks credential configuration created by IAM | [IAM resource](../../infrastructure/modules/iam/main.tf#L25-L33), [IAM output](../../infrastructure/modules/iam/outputs.tf#L11-L14) |
-| `storage_configuration_id` | Databricks storage configuration created by storage | [Storage resource](../../infrastructure/modules/storage/main.tf#L59-L67), [storage output](../../infrastructure/modules/storage/outputs.tf#L11-L14) |
+| VPC ID | `aws_vpc.this` | Attaching subnets, gateways, route tables, and security group |
+| Subnet IDs | `aws_subnet.public` and `aws_subnet.private` | Route associations and NAT placement |
+| Internet Gateway ID | `aws_internet_gateway.this` | Public default route and NAT dependency |
+| Elastic IP allocation ID | `aws_eip.nat` | NAT Gateway address |
+| NAT Gateway ID | `aws_nat_gateway.this` | Private default route |
+| Route table IDs | `aws_route_table.*` | Routes and subnet associations |
 
-The platform passes these values into the workspace module in [platform `main.tf`](../../infrastructure/modules/platform/main.tf#L125-L134). The workspace module uses them in its Databricks resources in [workspace `main.tf`](../../infrastructure/modules/databricks-workspace/main.tf).
+These IDs are generated by AWS and flow through Terraform references. You do not enter them in `terraform.tfvars`. On the first plan Terraform may show an ID as `known after apply`; Terraform obtains it during apply and passes it to dependent resources.
 
-You do not copy these generated IDs into `terraform.tfvars`. On the first plan, Terraform may show an ID as `known after apply`. Terraform creates the prerequisite resource, receives the ID from AWS or Databricks, and supplies it to the dependent resource. Later plans can read the existing IDs from Terraform state and refresh them against the providers.
-
-Values such as the Databricks account ID, workspace name, AWS region, and CIDR ranges are configuration inputs. The resource IDs above are generated outputs.
+The future Databricks workspace will also receive generated VPC, subnet, security group, credential, and storage configuration IDs. Its retained module code is under `tobeimplement-temp/databricks/modules`; those inputs are not active yet.
 
 ## How Terraform orders resources
 
-Terraform builds a dependency graph from references.
+Terraform builds a dependency graph from references. For example, the NAT Gateway references the Elastic IP allocation ID and public subnet ID, so those resources are created first. The public route references the Internet Gateway ID, and private routing references the NAT Gateway ID.
 
-For example, the NAT Gateway uses `aws_eip.nat.id` and `aws_subnet.public.id` in [networking `main.tf`](../../infrastructure/modules/networking/main.tf#L42-L55). Those references tell Terraform to create the Elastic IP and public subnet before the NAT Gateway. The workspace resource uses the network ID created by its network registration resource in [workspace `main.tf`](../../infrastructure/modules/databricks-workspace/main.tf), so the network registration must happen first.
-
-These are **implicit dependencies**. A resource or module references another object's value, so Terraform can infer the ordering.
+These references create implicit dependencies. A resource or module refers to another object's value, so Terraform infers the required order.
 
 ## What `depends_on` does
 
-Use `depends_on` for a dependency Terraform cannot infer from an argument reference. It adds an explicit ordering edge to the graph.
+Use `depends_on` when Terraform cannot infer an ordering requirement from an argument reference. It adds an explicit edge to the dependency graph.
 
-This repository has two examples:
+The active code uses explicit dependencies for:
 
-- Networking waits for CIDR and Availability Zone validation in [platform `main.tf`](../../infrastructure/modules/platform/main.tf#L76-L88).
-- The workspace module explicitly waits for the networking module in [platform `main.tf`](../../infrastructure/modules/platform/main.tf#L118-L137).
-- The NAT Gateway explicitly waits for the Internet Gateway in [networking `main.tf`](../../infrastructure/modules/networking/main.tf#L48-L55).
+- Networking waits for CIDR and Availability Zone validation in [platform main](../../infrastructure/modules/platform/main.tf).
+- The NAT Gateway waits for the Internet Gateway in [networking main](../../infrastructure/modules/networking/main.tf).
 
-An explicit module dependency waits for the module's operations as a whole. That is broader than a reference to one output and can make a plan more conservative. Prefer references when they express the required relationship; add `depends_on` when there is a real hidden dependency.
+Prefer references when they express the dependency. Use `depends_on` only for a real dependency Terraform cannot see through references.
 
 ## State locking and drift
 
-The dev root stores state in S3. The generated backend configuration sets `use_lockfile = true` in [bootstrap outputs](../../infrastructure/bootstrap/outputs.tf#L11-L21). Terraform uses that lock to prevent two Terraform operations from writing the same state at once. The bootstrap root itself uses local state.
+The dev root stores state in S3. Its backend configuration enables `use_lockfile = true` in [bootstrap outputs](../../infrastructure/bootstrap/outputs.tf). Terraform uses that lock to prevent concurrent operations from writing the same state. The bootstrap root itself uses local state.
 
-State locking does not stop manual changes in AWS or Databricks. Those changes can create **drift**, where real resources differ from configuration. A normal `terraform plan` refreshes the provider view and shows proposed changes. Review the plan to decide whether to update the configuration or let Terraform restore the configured values.
+State locking does not prevent manual changes in AWS. Those changes can create drift between the real resources and Terraform configuration. A normal `terraform plan` refreshes the provider view and shows proposed changes. Review the plan to decide whether to update configuration or let Terraform restore its declared values.
 
 ## A safe way to explore
 
-From the repository root, inspect the dev root and then follow one value through each module:
-
 1. Find a root variable in `infrastructure/environments/dev/variables.tf`.
 2. Find where the dev root passes it to `module.platform`.
-3. Find where the platform module uses it directly or passes it to a child.
+3. Find where the platform module uses it or passes it to networking.
 4. For generated IDs, trace the resource, its module output, and the parent's input assignment.
-5. Follow resource references and `depends_on` to understand ordering.
+5. Follow references and `depends_on` to understand ordering.
 
-Run `terraform plan` from the dev root to see the full dependency graph expressed as proposed actions. Review the complete plan; this root includes networking, IAM, storage, and Databricks resources.
+Run `terraform plan` from the dev root to see proposed actions for the active AWS networking scope. Review the complete plan before applying.
