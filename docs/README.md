@@ -8,6 +8,7 @@ The [repository README](../README.md) contains the project overview and current 
 
 - [Architecture](design/architecture.md) describes components, ownership, and traffic flow.
 - [Networking](design/networking.md) summarizes the CIDR plan, routing, and network controls.
+- [Unity Catalog governance](design/unity-catalog-governance.md) describes the planned AWS storage, identity, namespace, and access-control model.
 
 ### Step by step
 

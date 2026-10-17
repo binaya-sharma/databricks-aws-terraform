@@ -53,9 +53,13 @@ Before starting, confirm Databricks account access, account ID, authentication, 
 
 **Status: Not started**
 
-- Define the Unity Catalog metastore and region strategy.
-- Create storage credentials and external locations with least privilege.
-- Configure workspace assignment and access grants.
+- Define the regional metastore and workspace assignment.
+- Set up a dedicated managed-storage location and least-privilege AWS identity.
+- Create storage credentials, approved external locations, catalogs, and schemas.
+- Define ownership, group-based grants, and any required workspace bindings or data controls.
+- Verify allowed and denied access, audit records, and lineage.
+
+See the [Unity Catalog governance guide](../design/unity-catalog-governance.md) for the planned design and implementation checklist. These items are not deployed.
 
 ## Phase 6: Compute and validation
 
